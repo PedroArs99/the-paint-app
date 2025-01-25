@@ -1,6 +1,8 @@
 import { Injectable } from '@angular/core';
 import Konva from 'konva';
 import { KonvaEventObject } from 'konva/lib/Node';
+import { ChannelService } from './channel.service';
+import { UserService } from './user.service';
 
 @Injectable({
   providedIn: 'root',
@@ -11,6 +13,8 @@ export class DrawingService {
 
   private isPainting = false;
   private currentPainting?: Konva.Line;
+
+  constructor(private userService: UserService, private channelService: ChannelService) {}
 
   initStage(containerId: string, width: number, height: number) {
     this.stage = new Konva.Stage({
@@ -23,7 +27,9 @@ export class DrawingService {
     this.stage.add(this.drawingLayer);
 
     this.stage.on('mousedown touchstart', this.onPaintingStart.bind(this));
-    this.stage.on('mousemove touchmove', (e) => this.onPaintingPointerMove.bind(this)(e));
+    this.stage.on('mousemove touchmove', (e) =>
+      this.onPaintingPointerMove.bind(this)(e)
+    );
     this.stage.on('mouseup touchend', this.onPaintingEnd.bind(this));
   }
 
@@ -50,6 +56,12 @@ export class DrawingService {
     });
 
     this.drawingLayer?.add(this.currentPainting);
+
+    this.channelService.publish({
+      userId: this.userService.userId,
+      type: 'start',
+      pointerPosition,
+    });
   }
 
   private onPaintingPointerMove(e: KonvaEventObject<any, Konva.Stage>) {
@@ -65,9 +77,20 @@ export class DrawingService {
       ?.points()
       .concat([pointerPosition.x, pointerPosition.y]);
     this.currentPainting?.points(newPoints ?? []);
+
+    this.channelService.publish({
+      userId: this.userService.userId,
+      type: 'start',
+      pointerPosition,
+    });
   }
 
   private onPaintingEnd() {
     this.isPainting = false;
+
+    this.channelService.publish({
+      userId: this.userService.userId,
+      type: 'end',
+    });
   }
 }
